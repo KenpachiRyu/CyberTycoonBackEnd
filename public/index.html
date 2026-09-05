@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Tycoon - Panel Docente</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    /* VISTAS DE ACCESO (LOGIN / REGISTRO) */
+    #vista-auth {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .card-auth {
+      background: #1e293b;
+      padding: 2.5rem;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+    }
+    .card-auth h1 {
+      color: #38bdf8;
+      font-size: 1.6rem;
+      margin: 0 0 0.5rem 0;
+      text-align: center;
+    }
+    .card-auth p.subtitulo {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    /* VISTA DASHBOARD */
+    #vista-dashboard {
+      display: none;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: #38bdf8;
+    }
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.95rem;
+      color: #cbd5e1;
+    }
+
+    /* CONTROLES Y PANELES */
+    .grid-controles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 850px) {
+      .grid-controles { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #1e293b;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .panel h2 {
+      font-size: 1.1rem;
+      color: #cbd5e1;
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+
+    /* FORMULARIOS */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #94a3b8;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    input:focus, select:focus {
+      border-color: #38bdf8;
+    }
+    button {
+      padding: 0.65rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: #0284c7; color: white; width: 100%; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-danger { background: #b91c1c; color: white; }
+    .btn-danger:hover { background: #991b1b; }
+    .btn-refresh { background: #334155; color: #f8fafc; }
+    .btn-refresh:hover { background: #475569; }
+
+    /* TABLA */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #334155;
+    }
+    th {
+      background: #0369a1;
+      color: #ffffff;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+    tr:hover { background: #273549; }
+
+    /* BADGES Y ALERTAS */
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+    .temp-ok { background: #15803d; color: #dcfce7; }
+    .temp-warn { background: #b45309; color: #fef3c7; }
+    .temp-danger { background: #b91c1c; color: #fee2e2; }
+    .codigo-box {
+      font-family: monospace;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #38bdf8;
+      background: #0f172a;
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px dashed #38bdf8;
+      display: inline-block;
+      margin-top: 0.5rem;
+    }
+    .alerta {
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .alerta-error { background: #7f1d1d; color: #fecaca; display: block; }
+    .alerta-ok { background: #064e3b; color: #a7f3d0; display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. VISTAS DE AUTENTICACIÓN / REGISTRO -->
+  <div id="vista-auth">
+
+    <!-- CAJA DE INICIO DE SESIÓN -->
+    <div class="card-auth" id="caja-login">
+      <h1>Cyber Tycoon</h1>
+      <p class="subtitulo">Módulo de Gestión y Auditoría Docente</p>
+
+      <div class="form-group">
+        <label for="login-correo">Correo Institucional</label>
+        <input type="email" id="login-correo" placeholder="profesor@universidad.edu">
+      </div>
+
+      <div class="form-group">
+        <label for="login-pass">Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••">
+      </div>
+
+      <button class="btn-primary" onclick="iniciarSesionDocente()">Acceder al Panel</button>
+
+      <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center;">
+        ¿Nuevo docente? <a href="#" onclick="alternarVistaAuth('registro')" style="color: #38bdf8; text-decoration: none;">Registrarse con clave de institución</a>
+      </p>
+      <div id="login-msg" class="alerta"></div>
+    </div>
+
+    <!-- CAJA DE REGISTRO CON CLAVE MAESTRA -->
+    <div class="card-auth" id="caja-registro" style="display: none;">
+      <h1>Registro Docente</h1>
+      <p class="subtitulo">Autorización de cuenta para profesores</p>
+
+      <div class="form-group">
+        <label for="reg-nombre">Nombre Completo</label>
+        <input type="text" id="reg-nombre" placeholder="Dra. Laura Gómez">
+      </div>
+
+      <div class="form-group">
+        <label for="reg-correo">Correo Electrónico</label>
+        <input type="email" id="reg-correo" placeholder="laura@universidad.edu">
+      </div>
+
+      <div class="form-group">
+        <label for="reg-pass">Contraseña (Mínimo 8 caracteres)</label>
+        <input type="password" id="reg-pass" placeholder="••••••••">
+      </div>
+
+      <div class="form-group">
+        <label for="reg-clave-maestra">Clave Maestra Institucional</label>
+        <input type="password" id="reg-clave-maestra" placeholder="Clave de seguridad del servidor">
+      </div>
+
+      <button class="btn-primary" onclick="registrarNuevoDocente()">Dar de Alta Cuenta</button>
+
+      <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center;">
+        <a href="#" onclick="alternarVistaAuth('login')" style="color: #94a3b8; text-decoration: none;">← Volver al Inicio de Sesión</a>
+      </p>
+      <div id="reg-msg" class="alerta"></div>
+    </div>
+
+  </div>
+
+  <!-- 2. VISTA: DASHBOARD PRINCIPAL -->
+  <div id="vista-dashboard">
+    <header>
+      <div>
+        <h1>Centro de Control Docente</h1>
+        <span style="color: #94a3b8; font-size: 0.85rem;">Simulador Cyber Tycoon — Monitoreo de Redes y Centros de Datos</span>
+      </div>
+      <div class="user-badge">
+        <span id="txt-nombre-docente">Profesor</span>
+        <button class="btn-danger" onclick="cerrarSesion()">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div class="grid-controles">
+      <!-- PANEL A: CREAR NUEVA CLASE -->
+      <div class="panel">
+        <h2>Crear Nueva Clase</h2>
+        <div class="form-group">
+          <label for="nombre-clase">Nombre de la Asignatura / Grupo</label>
+          <input type="text" id="nombre-clase" placeholder="Ej. Redes de Computadoras - Grupo B">
+        </div>
+        <button class="btn-primary" onclick="crearClase()">Generar Clase y Código</button>
+        <div id="crear-clase-resultado" style="display: none; margin-top: 1rem;">
+          <span style="font-size: 0.85rem; color: #94a3b8;">Entrega este código a tus alumnos para Godot:</span><br>
+          <div class="codigo-box" id="lbl-codigo-generado">CT-XXXXX</div>
+        </div>
+      </div>
+
+      <!-- PANEL B: SELECCIONAR CLASE ACTIVA -->
+      <div class="panel">
+        <h2>Clase Seleccionada</h2>
+        <div class="form-group">
+          <label for="select-clases">Selecciona un grupo para auditar:</label>
+          <select id="select-clases" onchange="cambiarClaseActiva()">
+            <option value="">Cargando clases...</option>
+          </select>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <span id="txt-info-clase" style="font-size: 0.85rem; color: #38bdf8;"></span>
+          <button class="btn-refresh" onclick="cargarAlumnosDeClase()">🔄 Forzar Recarga</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA DE ALUMNOS EN TIEMPO REAL -->
+    <div class="panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0;">Alumnos Inscritos y Métricas en Tiempo Real</h2>
+        <span style="font-size: 0.8rem; color: #94a3b8;">Actualización en vivo cada 5s</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Alumno</th>
+            <th>Créditos</th>
+            <th>Reputación</th>
+            <th>TFLOPS</th>
+            <th>Temperatura</th>
+            <th>Carga Eléctrica</th>
+            <th>Tickets Atendidos</th>
+            <th>Ataques Mitigados</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-alumnos">
+          <tr><td colspan="9" style="text-align: center; color: #94a3b8;">Selecciona una clase para visualizar alumnos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    let idClaseSeleccionada = null;
+    let timerPolling = null;
+
+    // Verificar si ya existe token en sessionStorage al cargar
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = sessionStorage.getItem('token_docente');
+      const nombre = sessionStorage.getItem('nombre_docente');
+      if (token) {
+        mostrarDashboard(nombre);
+      }
+    });
+
+    // Cambiar entre Login y Registro
+    function alternarVistaAuth(vista) {
+      document.getElementById('caja-login').style.display = (vista === 'login') ? 'block' : 'none';
+      document.getElementById('caja-registro').style.display = (vista === 'registro') ? 'block' : 'none';
+      document.getElementById('login-msg').style.display = 'none';
+      document.getElementById('reg-msg').style.display = 'none';
+    }
+
+    // 1. INICIAR SESIÓN
+    async function iniciarSesionDocente() {
+      const correo = document.getElementById('login-correo').value.trim();
+      const password = document.getElementById('login-pass').value;
+      const msg = document.getElementById('login-msg');
+
+      msg.className = 'alerta';
+      msg.style.display = 'none';
+
+      if (!correo || !password) {
+        msg.className = 'alerta alerta-error';
+        msg.innerText = 'Ingresa tu correo y contraseña.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/profesor/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          msg.className = 'alerta alerta-error';
+          msg.innerText = data.error || 'Credenciales no válidas';
+          return;
+        }
+
+        sessionStorage.setItem('token_docente', data.token);
+        sessionStorage.setItem('nombre_docente', data.profesor.nombre);
+        mostrarDashboard(data.profesor.nombre);
+      } catch (err) {
+        msg.className = 'alerta alerta-error';
+        msg.innerText = 'Error al comunicar con la API REST: ' + err.message;
+      }
+    }
+
+    // 2. REGISTRAR NUEVO DOCENTE (CON CLAVE MAESTRA)
+    async function registrarNuevoDocente() {
+      const nombre = document.getElementById('reg-nombre').value.trim();
+      const correo = document.getElementById('reg-correo').value.trim();
+      const password = document.getElementById('reg-pass').value;
+      const clave_maestra = document.getElementById('reg-clave-maestra').value.trim();
+      const msg = document.getElementById('reg-msg');
+
+      msg.className = 'alerta';
+      msg.style.display = 'none';
+
+      if (!nombre || !correo || !password || !clave_maestra) {
+        msg.className = 'alerta alerta-error';
+        msg.innerText = 'Todos los campos son obligatorios.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/profesor/registro`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre, correo, password, clave_maestra })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          msg.className = 'alerta alerta-error';
+          msg.innerText = data.error || 'Error en el registro';
+          return;
+        }
+
+        alert('¡Docente registrado con éxito! Ahora puedes acceder al panel.');
+        alternarVistaAuth('login');
+        document.getElementById('login-correo').value = correo;
+        document.getElementById('login-pass').value = '';
+      } catch (err) {
+        msg.className = 'alerta alerta-error';
+        msg.innerText = 'Fallo de conexión al registrar: ' + err.message;
+      }
+    }
+
+    function mostrarDashboard(nombre) {
+      document.getElementById('vista-auth').style.display = 'none';
+      document.getElementById('vista-dashboard').style.display = 'block';
+      document.getElementById('txt-nombre-docente').innerText = `Docente: ${nombre}`;
+      cargarClases();
+    }
+
+    function cerrarSesion() {
+      sessionStorage.clear();
+      clearInterval(timerPolling);
+      window.location.reload();
+    }
+
+    // 3. CARGAR CLASES DEL DOCENTE
+    async function cargarClases() {
+      const token = sessionStorage.getItem('token_docente');
+      const select = document.getElementById('select-clases');
+
+      try {
+        const res = await fetch(`${API_BASE}/profesor/clases`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          cerrarSesion();
+          return;
+        }
+
+        const clases = await res.json();
+        select.innerHTML = '';
+
+        if (clases.length === 0) {
+          select.innerHTML = '<option value="">No has creado ninguna clase aún</option>';
+          document.getElementById('tabla-alumnos').innerHTML = '<tr><td colspan="9" style="text-align: center;">Crea tu primera clase para recibir alumnos.</td></tr>';
+          return;
+        }
+
+        clases.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c.id_clase;
+          opt.dataset.codigo = c.codigo_clase;
+          opt.innerText = `${c.nombre_clase} (${c.codigo_clase}) — [${c.total_alumnos} Alumnos]`;
+          select.appendChild(opt);
+        });
+
+        if (!idClaseSeleccionada && clases.length > 0) {
+          idClaseSeleccionada = clases[0].id_clase;
+        }
+
+        select.value = idClaseSeleccionada;
+        cambiarClaseActiva();
+      } catch (err) {
+        console.error('Error cargando clases:', err);
+      }
+    }
+
+    // 4. CREAR NUEVA CLASE
+    async function crearClase() {
+      const nombreInput = document.getElementById('nombre-clase');
+      const nombre_clase = nombreInput.value.trim();
+      const token = sessionStorage.getItem('token_docente');
+
+      if (!nombre_clase) {
+        alert('Escribe el nombre de la materia o grupo');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/profesor/clases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ nombre_clase })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('lbl-codigo-generado').innerText = data.clase.codigo_clase;
+          document.getElementById('crear-clase-resultado').style.display = 'block';
+          nombreInput.value = '';
+          idClaseSeleccionada = data.clase.id_clase;
+          cargarClases();
+        } else {
+          alert('Error creando clase: ' + data.error);
+        }
+      } catch (err) {
+        alert('Fallo de conexión al crear clase');
+      }
+    }
+
+    // 5. CAMBIAR CLASE ACTIVA
+    function cambiarClaseActiva() {
+      const select = document.getElementById('select-clases');
+      idClaseSeleccionada = select.value;
+      const selectedOption = select.options[select.selectedIndex];
+
+      if (selectedOption && selectedOption.dataset.codigo) {
+        document.getElementById('txt-info-clase').innerText = `Código de acceso: ${selectedOption.dataset.codigo}`;
+      } else {
+        document.getElementById('txt-info-clase').innerText = '';
+      }
+
+      cargarAlumnosDeClase();
+
+      clearInterval(timerPolling);
+      timerPolling = setInterval(cargarAlumnosDeClase, 5000);
+    }
+
+    // 6. CARGAR ALUMNOS Y MÉTRICAS
+    async function cargarAlumnosDeClase() {
+      if (!idClaseSeleccionada) return;
+
+      const token = sessionStorage.getItem('token_docente');
+      const tbody = document.getElementById('tabla-alumnos');
+
+      try {
+        const res = await fetch(`${API_BASE}/profesor/clases/${idClaseSeleccionada}/alumnos`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) return;
+
+        const alumnos = await res.json();
+        tbody.innerHTML = '';
+
+        if (alumnos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Aún no se ha conectado ningún alumno con este código de clase.</td></tr>';
+          return;
+        }
+
+        alumnos.forEach(a => {
+          let tempBadge = 'temp-ok';
+          if (a.temperaturaCD > 40 && a.temperaturaCD <= 60) tempBadge = 'temp-warn';
+          if (a.temperaturaCD > 60) tempBadge = 'temp-danger';
+
+          tbody.innerHTML += `
+            <tr>
+              <td>#${a.id_usuario}</td>
+              <td><strong>${a.nombreUsuario}</strong></td>
+              <td>$${parseFloat(a.creditos).toFixed(2)}</td>
+              <td>⭐ ${a.reputacion}</td>
+              <td>⚡ ${a.teraflopsCD} TFLOPS</td>
+              <td><span class="badge ${tempBadge}">${a.temperaturaCD} °C</span></td>
+              <td>${a.carga_electrica_actual} / ${a.capacidad_watts} W</td>
+              <td>✅ ${a.contratos_finalizados}</td>
+              <td>🛡️ ${a.ataquesResueltos}</td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error('Error actualizando tabla de alumnos:', err);
+      }
+    }
+  </script>
+</body>
+</html>
