@@ -1,6 +1,11 @@
-let tokenDocente = localStorage.getItem('tokenDocente') || '';
+// Usamos sessionStorage para que la sesión se destruya al cerrar pestaña/navegador
+let tokenDocente = sessionStorage.getItem('tokenDocente') || '';
 let listaAlumnosActuales = [];
 let timerAutoRefresh = null;
+
+// Control de cierre automático por inactividad (15 minutos)
+const TIEMPO_INACTIVIDAD_MS = 15 * 60 * 1000;
+let timerInactividad = null;
 
 // Sanitizador contextual defensivo para el renderizado seguro en DOM
 function escaparHTML(str) {
@@ -13,8 +18,44 @@ function escaparHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Interceptor centralizado para peticiones autenticadas
+async function fetchAutenticado(url, opciones = {}) {
+  opciones.headers = opciones.headers || {};
+  opciones.headers['Authorization'] = 'Bearer ' + tokenDocente;
+
+  const res = await fetch(url, opciones);
+
+  // Si el token expiró en el backend o no es válido (401 / 403)
+  if (res.status === 401 || res.status === 403) {
+    alert('Tu sesión ha expirado o no es válida. Por favor inicia sesión nuevamente.');
+    cerrarSesion();
+    throw new Error('Sesión expirada');
+  }
+
+  return res;
+}
+
+// Detección de actividad del usuario
+function reiniciarTemporizadorInactividad() {
+  if (!tokenDocente) return;
+
+  if (timerInactividad) clearTimeout(timerInactividad);
+
+  timerInactividad = setTimeout(() => {
+    alert('Sesión cerrada automáticamente por inactividad (15 minutos).');
+    cerrarSesion();
+  }, TIEMPO_INACTIVIDAD_MS);
+}
+
+function iniciarMonitoreoInactividad() {
+  const eventos = ['mousemove', 'keydown', 'click', 'scroll'];
+  eventos.forEach(evento => {
+    window.addEventListener(evento, reiniciarTemporizadorInactividad);
+  });
+  reiniciarTemporizadorInactividad();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Inicialización de escuchadores de eventos
   document.getElementById('tabBtnLogin').addEventListener('click', () => cambiarTab('login'));
   document.getElementById('tabBtnRegistro').addEventListener('click', () => cambiarTab('registro'));
   document.getElementById('btnIniciarSesion').addEventListener('click', iniciarSesionDocente);
@@ -79,6 +120,7 @@ async function registrarNuevoDocente() {
     setTimeout(() => {
       cambiarTab('login');
       document.getElementById('loginCorreo').value = correo;
+      document.getElementById('loginPass').value = '';
     }, 1200);
   } catch (err) {
     errBox.innerText = err.message;
@@ -101,7 +143,7 @@ async function iniciarSesionDocente() {
     if (!res.ok) throw new Error(data.error || 'Error al iniciar sesión');
 
     tokenDocente = data.token;
-    localStorage.setItem('tokenDocente', tokenDocente);
+    sessionStorage.setItem('tokenDocente', tokenDocente);
     mostrarDashboard();
   } catch (err) {
     errBox.innerText = err.message;
@@ -111,12 +153,15 @@ async function iniciarSesionDocente() {
 function mostrarDashboard() {
   document.getElementById('vistaAuth').classList.add('hidden');
   document.getElementById('vistaDashboard').classList.remove('hidden');
+  iniciarMonitoreoInactividad();
   cargarClases();
 }
 
 function cerrarSesion() {
   if (timerAutoRefresh) clearInterval(timerAutoRefresh);
-  localStorage.removeItem('tokenDocente');
+  if (timerInactividad) clearTimeout(timerInactividad);
+  sessionStorage.removeItem('tokenDocente');
+  tokenDocente = '';
   location.reload();
 }
 
@@ -140,9 +185,7 @@ async function cargarClases() {
   const select = document.getElementById('selectClases');
   select.innerHTML = '<option value="">Cargando clases...</option>';
   try {
-    const res = await fetch('/api/profesor/clases', {
-      headers: { 'Authorization': 'Bearer ' + tokenDocente }
-    });
+    const res = await fetchAutenticado('/api/profesor/clases');
     const clases = await res.json();
     select.innerHTML = '';
 
@@ -161,7 +204,9 @@ async function cargarClases() {
 
     cargarEstudiantes();
   } catch (err) {
-    select.innerHTML = '<option value="">Error al cargar clases</option>';
+    if (err.message !== 'Sesión expirada') {
+      select.innerHTML = '<option value="">Error al cargar clases</option>';
+    }
   }
 }
 
@@ -170,20 +215,21 @@ async function crearClase() {
   const nombre = input.value.trim();
   if (!nombre) return alert('Ingresa un nombre para la clase');
 
-  const res = await fetch('/api/profesor/clases', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + tokenDocente
-    },
-    body: JSON.stringify({ nombre_clase: nombre })
-  });
-  const data = await res.json();
-  if (!res.ok) return alert(data.error || 'No se pudo crear la clase');
+  try {
+    const res = await fetchAutenticado('/api/profesor/clases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre_clase: nombre })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'No se pudo crear la clase');
 
-  alert(`Clase creada con éxito. Código de clase: ${data.codigo_clase}`);
-  input.value = '';
-  await cargarClases();
+    alert(`Clase creada con éxito. Código de clase: ${data.codigo_clase}`);
+    input.value = '';
+    await cargarClases();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function eliminarClaseSeleccionada() {
@@ -194,15 +240,18 @@ async function eliminarClaseSeleccionada() {
     return;
   }
 
-  const res = await fetch(`/api/profesor/clases/${idClase}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + tokenDocente }
-  });
-  const data = await res.json();
-  if (!res.ok) return alert(data.error || 'Error al eliminar');
+  try {
+    const res = await fetchAutenticado(`/api/profesor/clases/${idClase}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Error al eliminar');
 
-  alert(data.mensaje);
-  cargarClases();
+    alert(data.mensaje);
+    cargarClases();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function agregarAlumno() {
@@ -217,39 +266,43 @@ async function agregarAlumno() {
   msg.innerText = 'Registrando...';
   msg.style.color = 'var(--primary)';
 
-  const res = await fetch(`/api/profesor/clases/${idClase}/estudiantes`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + tokenDocente
-    },
-    body: JSON.stringify({ nombreUsuario: alias })
-  });
-  const data = await res.json();
+  try {
+    const res = await fetchAutenticado(`/api/profesor/clases/${idClase}/estudiantes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombreUsuario: alias })
+    });
+    const data = await res.json();
 
-  if (!res.ok) {
-    msg.innerText = data.error || 'Error al agregar estudiante';
-    msg.style.color = 'var(--danger)';
-    return;
+    if (!res.ok) {
+      msg.innerText = data.error || 'Error al agregar estudiante';
+      msg.style.color = 'var(--danger)';
+      return;
+    }
+
+    msg.innerText = `Estudiante "${data.nombreUsuario}" dado de alta. Ya puede acceder desde Godot.`;
+    msg.style.color = 'var(--success)';
+    input.value = '';
+    cargarEstudiantes();
+  } catch (err) {
+    console.error(err);
   }
-
-  msg.innerText = `Estudiante "${data.nombreUsuario}" dado de alta. Ya puede acceder desde Godot.`;
-  msg.style.color = 'var(--success)';
-  input.value = '';
-  cargarEstudiantes();
 }
 
 async function eliminarAlumno(idUsuario, nombre) {
   if (!confirm(`¿Eliminar al estudiante "${nombre}" y todo su progreso?`)) return;
 
-  const res = await fetch(`/api/profesor/estudiantes/${idUsuario}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + tokenDocente }
-  });
-  const data = await res.json();
-  if (!res.ok) return alert(data.error || 'No se pudo eliminar');
+  try {
+    const res = await fetchAutenticado(`/api/profesor/estudiantes/${idUsuario}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'No se pudo eliminar');
 
-  cargarEstudiantes();
+    cargarEstudiantes();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function cargarEstudiantes() {
@@ -260,16 +313,16 @@ async function cargarEstudiantes() {
   }
 
   try {
-    const res = await fetch(`/api/profesor/clases/${idClase}/alumnos`, {
-      headers: { 'Authorization': 'Bearer ' + tokenDocente }
-    });
+    const res = await fetchAutenticado(`/api/profesor/clases/${idClase}/alumnos`);
     const alumnos = await res.json();
 
     listaAlumnosActuales = Array.isArray(alumnos) ? alumnos : [];
     actualizarMetricasKPI(listaAlumnosActuales);
     filtrarAlumnos();
   } catch (err) {
-    document.getElementById('tablaAlumnosBody').innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--danger);">Error al consultar alumnos.</td></tr>';
+    if (err.message !== 'Sesión expirada') {
+      document.getElementById('tablaAlumnosBody').innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--danger);">Error al consultar alumnos.</td></tr>';
+    }
   }
 }
 
